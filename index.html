@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="TechBot - Chatbot tra cứu sản phẩm công nghệ từ dữ liệu CSV.">
+  <title>TechBot | Trợ lý tra cứu công nghệ</title>
+
+  <!-- Thư viện đọc CSV PapaParse -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a2d;
+      --panel-2: #1b2640;
+      --text: #edf2ff;
+      --muted: #a7b3cb;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --border: #2a3752;
+      --user: #1e3a8a;
+      --bot: #1e293b;
+      --danger: #fca5a5;
+      --success: #4ade80;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    button, input, select { font: inherit; }
+
+    .app {
+      max-width: 1150px;
+      margin: auto;
+      padding: 24px 16px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 15px;
+      background: #1e40af;
+      font-size: 25px;
+    }
+
+    h1 { margin: 0; font-size: 26px; font-weight: 700; }
+    .subtitle { color: var(--muted); margin-top: 4px; font-size: 14px; }
+
+    .status {
+      color: var(--muted);
+      font-size: 13px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #e2e8f0;
+    }
+
+    .status.ready .status-dot { background: var(--success); }
+    .status.error .status-dot { background: var(--danger); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .panel-heading {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-heading h2 { margin: 0 0 4px; font-size: 17px; }
+    .panel-heading p { margin: 0; color: var(--muted); font-size: 13px; }
+
+    #messages {
+      height: 480px;
+      overflow-y: auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .message {
+      max-width: 90%;
+      border-radius: 14px;
+      padding: 12px 16px;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    .message.bot {
+      align-self: flex-start;
+      background: var(--bot);
+      border: 1px solid var(--border);
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--user);
+    }
+
+    .message .who {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .message.user .who { color: #93c5fd; }
+
+    .product {
+      margin-top: 10px;
+      padding: 12px 14px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .product h3 { font-size: 15px; margin: 0 0 8px; color: #f8fafc; }
+    .product p { font-size: 13px; margin: 5px 0; }
+    .field-name { color: var(--muted); font-weight: 600; }
+    .product a { color: var(--accent); text-decoration: none; font-size: 13px; }
+    .product a:hover { text-decoration: underline; }
+
+    .chat-form {
+      padding: 14px;
+      display: flex;
+      gap: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    #question {
+      flex: 1;
+      min-width: 0;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #090d16;
+      color: var(--text);
+      outline: none;
+    }
+
+    #question:focus { border-color: var(--accent); }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 16px;
+      background: var(--accent);
+      color: #090d16;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover { background: var(--accent-hover); color: #fff; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover { background: var(--border); color: #fff; }
+
+    .sidebar-content { padding: 16px; }
+    .sidebar-content h3 { font-size: 14px; margin: 16px 0 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+    .sidebar-content h3:first-child { margin-top: 0; }
+
+    .suggestion {
+      width: 100%;
+      display: block;
+      text-align: left;
+      margin-bottom: 8px;
+      color: var(--text);
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      font-weight: normal;
+      font-size: 13px;
+      padding: 9px 12px;
+      border-radius: 8px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .stat {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+
+    .stat strong { display: block; font-size: 20px; color: var(--accent); }
+    .stat span { color: var(--muted); font-size: 12px; }
+
+    .upload-box {
+      border: 1px dashed var(--border);
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+      margin-bottom: 14px;
+      background: rgba(15, 23, 42, 0.3);
+    }
+
+    .upload-box input[type="file"] { display: none; }
+    .upload-label {
+      font-size: 12px;
+      color: var(--accent);
+      cursor: pointer;
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+    }
+
+    .notice {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+      margin-top: 16px;
+    }
+
+    footer { text-align: center; color: var(--muted); font-size: 12px; padding: 20px; }
+
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      #messages { height: 380px; }
+      h1 { font-size: 22px; }
+      .chat-form { flex-wrap: wrap; }
+      #question { flex-basis: 100%; }
+      .chat-form button { flex: 1; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">🤖</div>
+        <div>
+          <h1>TechBot</h1>
+          <div class="subtitle">Trợ lý tra cứu sản phẩm & linh kiện công nghệ</div>
+        </div>
+      </div>
+      <div class="status" id="status">
+        <span class="status-dot"></span>
+        <span id="statusText">Đang tải dữ liệu...</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Trò chuyện với TechBot</h2>
+          <p>Nhập tên sản phẩm, thương hiệu (Apple, AMD, Dell...), danh mục hoặc năm ra mắt.</p>
+        </div>
+
+        <div id="messages" aria-live="polite"></div>
+
+        <form class="chat-form" id="chatForm">
+          <input
+            id="question"
+            type="text"
+            placeholder="Ví dụ: Tìm laptop Dell hoặc thông số RTX 4070..."
+            autocomplete="off"
+            maxlength="500"
+            required
+          >
+          <button id="sendButton" type="submit" disabled>Gửi</button>
+          <button id="clearButton" type="button" class="btn-secondary">Xóa chat</button>
+        </form>
+      </section>
+
+      <aside class="panel">
+        <div class="sidebar-content">
+          <h3>Nguồn dữ liệu</h3>
+          <div class="upload-box">
+            <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">Tải file CSV tùy chỉnh:</div>
+            <label class="upload-label" for="csvFileInput">📂 Chọn file CSV khác</label>
+            <input type="file" id="csvFileInput" accept=".csv">
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <strong id="productCount">0</strong>
+              <span>Sản phẩm</span>
+            </div>
+            <div class="stat">
+              <strong id="categoryCount">0</strong>
+              <span>Danh mục</span>
+            </div>
+          </div>
+
+          <h3>Gợi ý câu hỏi</h3>
+          <button class="suggestion" data-question="Tìm sản phẩm của Apple">Tìm sản phẩm Apple</button>
+          <button class="suggestion" data-question="Tìm linh kiện của AMD">Tìm linh kiện AMD</button>
+          <button class="suggestion" data-question="Liệt kê các danh mục sản phẩm">Liệt kê danh mục</button>
+          <button class="suggestion" data-question="Tìm sản phẩm ra mắt năm 2024">Sản phẩm ra mắt năm 2024</button>
+          <button class="suggestion" data-question="Tìm chuột máy tính">Tìm chuột máy tính</button>
+
+          <div class="notice">
+            💡 TechBot tra cứu trực tiếp trên file CSV. Hệ thống hỗ trợ tìm kiếm theo từ khóa thông minh, lọc danh mục và năm phát hành.
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <footer>TechBot · Hệ thống tra cứu dữ liệu sản phẩm</footer>
+  </div>
+
+  <script>
+    const DEFAULT_CSV_URL = "./techbot_products_catalog_300.csv";
+
+    const messagesEl = document.getElementById("messages");
+    const statusEl = document.getElementById("status");
+    const statusTextEl = document.getElementById("statusText");
+    const sendButton = document.getElementById("sendButton");
+    const questionInput = document.getElementById("question");
+    const csvFileInput = document.getElementById("csvFileInput");
+
+    let products = [];
+
+    const FIELD_LABELS = {
+      product_id: "Mã SP",
+      product_name: "Tên sản phẩm",
+      brand: "Thương hiệu",
+      category: "Danh mục",
+      release_year: "Năm ra mắt",
+      launch_price: "Giá ra mắt",
+      currency: "Đơn vị tiền",
+      specifications: "Thông số kỹ thuật",
+      advantages: "Ưu điểm",
+      disadvantages: "Nhược điểm",
+      successor_model: "Đời kế nhiệm",
+      official_source_url: "Nguồn chính thức",
+      data_status: "Độ tin cậy dữ liệu"
+    };
+
+    function setStatus(type, text) {
+      statusEl.className = `status ${type}`;
+      statusTextEl.textContent = text;
+    }
+
+    function normalize(value) {
+      return String(value ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D")
+        .toLowerCase()
+        .trim();
+    }
+
+    function clean(value) {
+      return String(value ?? "").trim();
+    }
+
+    function addMessage(role, text, records = []) {
+      const message = document.createElement("div");
+      message.className = `message ${role}`;
+
+      const who = document.createElement("div");
+      who.className = "who";
+      who.textContent = role === "user" ? "Bạn" : "TechBot";
+      message.appendChild(who);
+
+      const content = document.createElement("div");
+      content.textContent = text;
+      message.appendChild(content);
+
+      for (const product of records) {
+        const card = document.createElement("article");
+        card.className = "product";
+
+        const title = document.createElement("h3");
+        title.textContent = clean(product.product_name) || "Sản phẩm không tên";
+        card.appendChild(title);
+
+        for (const [key, label] of Object.entries(FIELD_LABELS)) {
+          const value = clean(product[key]);
+          if (!value || key === "product_name" || key === "official_source_url") continue;
+
+          const p = document.createElement("p");
+          const labelSpan = document.createElement("span");
+          labelSpan.className = "field-name";
+          labelSpan.textContent = label + ": ";
+
+          const valueSpan = document.createElement("span");
+          valueSpan.textContent = value;
+
+          p.append(labelSpan, valueSpan);
+          card.appendChild(p);
+        }
+
+        const source = clean(product.official_source_url);
+        if (source && /^https?:\/\//i.test(source)) {
+          const p = document.createElement("p");
+          const a = document.createElement("a");
+          a.href = source;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.textContent = "🔗 Trang thông tin hãng";
+          p.appendChild(a);
+          card.appendChild(p);
+        }
+
+        message.appendChild(card);
+      }
+
+      messagesEl.appendChild(message);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function getSearchableText(product) {
+      return normalize([
+        product.product_id,
+        product.product_name,
+        product.brand,
+        product.category,
+        product.release_year,
+        product.launch_price,
+        product.currency,
+        product.specifications,
+        product.advantages,
+        product.disadvantages,
+        product.successor_model
+      ].map(clean).join(" "));
+    }
+
+    function searchProducts(question) {
+      const q = normalize(question);
+      const yearMatches = q.match(/\b(?:19|20)\d{2}\b/g);
+      const year = yearMatches ? yearMatches[0] : null;
+
+      if (q.includes("danh muc") && (q.includes("liet ke") || q.includes("cac danh muc") || q.includes("co nhung"))) {
+        const categories = [...new Set(
+          products.map(p => clean(p.category)).filter(Boolean)
+        )].sort((a, b) => a.localeCompare(b, "vi"));
+
+        return { type: "categories", categories, records: [] };
+      }
+
+      let candidates = products;
+      if (year) {
+        candidates = candidates.filter(p => clean(p.release_year) === year);
+      }
+
+      const ignored = new Set([
+        "tim", "cho", "toi", "minh", "voi", "va", "la", "co",
+        "nhung", "san", "pham", "nao", "gi", "giup", "hay",
+        "liet", "ke", "cac", "loai", "nam", "ra", "mat",
+        "duoc", "khong", "ve", "thong", "tin", "cua"
+      ]);
+
+      const tokens = q
+        .split(/[^a-z0-9]+/)
+        .filter(token => token.length > 1 && !ignored.has(token));
+
+      if (year && tokens.length === 0) {
+        return {
+          type: "products",
+          records: candidates.slice(0, 5),
+          total: candidates.length
+        };
+      }
+
+      const scored = candidates.map(product => {
+        const name = normalize(product.product_name);
+        const brand = normalize(product.brand);
+        const category = normalize(product.category);
+        const allText = getSearchableText(product);
+        let score = 0;
+
+        if (q && name.includes(q)) score += 12;
+        if (q && brand === q) score += 10;
+
+        for (const token of tokens) {
+          if (name.includes(token)) score += 5;
+          if (brand.includes(token)) score += 4;
+          if (category.includes(token)) score += 3;
+          if (allText.includes(token)) score += 1;
+        }
+
+        return { product, score };
+      });
+
+      const matches = scored
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(item => item.product);
+
+      return {
+        type: "products",
+        records: matches.slice(0, 5),
+        total: matches.length
+      };
+    }
+
+    function answerQuestion(question) {
+      const result = searchProducts(question);
+
+      if (result.type === "categories") {
+        if (!result.categories.length) {
+          return { text: "Dữ liệu hiện không chứa thông tin danh mục.", records: [] };
+        }
+        return {
+          text: "Các danh mục sản phẩm hiện có:\n- " + result.categories.join("\n- "),
+          records: []
+        };
+      }
+
+      if (!result.total) {
+        return {
+          text: "TechBot không tìm thấy sản phẩm phù hợp trong CSV. Bạn vui lòng thử lại với từ khóa khác như tên thương hiệu hoặc nhóm sản phẩm.",
+          records: []
+        };
+      }
+
+      return {
+        text: `Tìm thấy ${result.total} kết quả phù hợp. Dưới đây là các kết quả nổi bật nhất:`,
+        records: result.records
+      };
+    }
+
+    function parseCSVData(csvContent) {
+      const parsed = Papa.parse(csvContent, {
+        header: true,
+        skipEmptyLines: "greedy",
+        transformHeader: header => String(header).replace(/^\uFEFF/, "").trim()
+      });
+
+      if (parsed.errors.length && !parsed.data.length) {
+        throw new Error("Lỗi cấu trúc file CSV.");
+      }
+
+      products = parsed.data.filter(row =>
+        Object.values(row).some(value => clean(value) !== "")
+      );
+
+      if (!products.length) {
+        throw new Error("File CSV rỗng.");
+      }
+
+      const catCount = new Set(products.map(p => clean(p.category)).filter(Boolean)).size;
+      document.getElementById("productCount").textContent = products.length.toLocaleString("vi-VN");
+      document.getElementById("categoryCount").textContent = catCount.toLocaleString("vi-VN");
+
+      setStatus("ready", `Đã tải ${products.length} sản phẩm`);
+      sendButton.disabled = false;
+    }
+
+    async function loadDefaultCSV() {
+      try {
+        const response = await fetch(DEFAULT_CSV_URL, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const csvText = await response.text();
+        parseCSVData(csvText);
+
+        addMessage(
+          "bot",
+          `Xin chào! TechBot đã sẵn sàng với ${products.length} sản phẩm. Hãy đặt câu hỏi để tra cứu thông tin sản phẩm hoặc linh kiện.`
+        );
+      } catch (err) {
+        console.warn("Không nạp được CSV mặc định via fetch:", err);
+        setStatus("error", "Vui lòng chọn file CSV");
+        addMessage(
+          "bot",
+          "Chào bạn! Bạn có thể nhấn nút '📂 Chọn file CSV khác' ở cột bên phải để tải file dữ liệu sản phẩm lên."
+        );
+      }
+    }
+
+    csvFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          parseCSVData(evt.target.result);
+          addMessage("bot", `Đã nạp thành công ${products.length} dòng dữ liệu từ file '${file.name}'.`);
+        } catch (err) {
+          setStatus("error", "Lỗi đọc file");
+          alert("Lỗi khi đọc file CSV: " + err.message);
+        }
+      };
+      reader.readAsText(file, "UTF-8");
+    });
+
+    document.getElementById("chatForm").addEventListener("submit", event => {
+      event.preventDefault();
+      const question = questionInput.value.trim();
+      if (!question || !products.length) return;
+
+      addMessage("user", question);
+      questionInput.value = "";
+
+      const result = answerQuestion(question);
+      addMessage("bot", result.text, result.records);
+      questionInput.focus();
+    });
+
+    document.querySelectorAll("[data-question]").forEach(button => {
+      button.addEventListener("click", () => {
+        questionInput.value = button.dataset.question;
+        questionInput.focus();
+      });
+    });
+
+    document.getElementById("clearButton").addEventListener("click", () => {
+      messagesEl.replaceChildren();
+      addMessage("bot", "Đã xóa lịch sử trò chuyện. Hãy nhập câu hỏi mới.");
+    });
+
+    loadDefaultCSV();
+  </script>
+</body>
+</html>
